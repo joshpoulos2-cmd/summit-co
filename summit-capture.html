@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Summit Capture - 453 Missing Trails</title>
+<style>
+body { font-family: -apple-system, sans-serif; background: #111; color: #eee; padding: 16px; margin: 0; }
+h1 { font-size: 18px; color: #f97316; }
+#status { font-size: 14px; margin: 12px 0; padding: 12px; background: #1a1a2e; border-radius: 8px; }
+#progress { width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+#bar { height: 100%; background: #22c55e; width: 0%; transition: width 0.3s; }
+#log { font-size: 11px; color: #888; max-height: 300px; overflow-y: auto; white-space: pre-wrap; }
+button { background: #f97316; color: #000; border: none; padding: 12px 24px; border-radius: 8px; font-size: 16px; font-weight: 700; margin: 4px; }
+button.stop { background: #ef4444; color: #fff; }
+iframe { width: 100%; height: 400px; border: 1px solid #333; border-radius: 8px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<h1>Summit Trail Capture</h1>
+<div id="status">Ready. Tap Start to begin capturing 453 missing trails.</div>
+<div id="progress"><div id="bar"></div></div>
+<div>
+  <button onclick="startCapture()">Start</button>
+  <button class="stop" onclick="stopCapture()">Stop</button>
+  <button onclick="skipOne()">Skip</button>
+</div>
+<div id="log"></div>
+<iframe id="frame" sandbox="allow-scripts allow-same-origin allow-popups"></iframe>
+
+<script>
+// 118 real trail slugs + 335 numeric ID slugs
+const REAL_SLUGS = ["echo-lake-to-idaho-springs-reservoir","diamond-lake-trail","crater-lakes-via-south-boulder-creek-and-crater-lakes-trail","forest-lakes-trail","meadow-creek-to-st-louis-lake","shelf-lake-and-south-shelf-lake-via-loveland-pass","lone-eagle-peak-via-cascade-trail-to-mirror-lake","mount-flora-and-mount-eva-trail","breckinridge-peak-and-mount-flora-via-north-empire-creek","upper-mohawk-lake-via-spruce-creek-trail","peaks-trail","blue-lake-trail","piney-river-falls-trail","lake-isabelle-via-long-lake-and-isabelle-glacier-trail","emerald-lake-trail","haiyaha-lake-trail","sky-pond-via-glacier-gorge-trail","lake-of-glass-and-sky-pond-trail","black-lake-via-glacier-gorge-trail","mills-lake-trail","dream-lake-trail","fern-lake-trail-via-fern-lake-trailhead","the-loch-vale-trail","bear-lake-loop","nymph-lake-trail","alberta-falls-trail","gem-lake-trail","deer-mountain-trail","flattop-mountain-trail","hallett-peak-trail","twin-sisters-peaks-trail","chasm-lake-trail","longs-peak-via-keyhole-route","ypsilon-lake-trail","estes-cone-trail","copeland-falls-ouzel-falls-and-calypso-cascades-trail","ouzel-lake-trail","wild-basin-trail-to-thunder-lake","bluebird-lake-trail","sandbeach-lake-trail","lily-mountain-trail","lily-lake-trail","cub-lake-loop","old-fall-river-road","bear-lake-to-fern-lake-trail","odessa-lake-and-fern-lake-trail","continental-divide-trail-rocky-mountain-national-park","tonahutu-creek-and-north-inlet-loop-trail","mount-ida-trail","ute-trail-from-trail-ridge","timber-lake-trail","lake-nanita-via-north-inlet-trail","north-inlet-trail-to-lake-solitude","east-inlet-trail-to-lone-pine-lake","east-inlet-trail-to-lake-verna","monarch-lake-loop-trail","cascade-falls-trail","monarch-lake-to-crater-lake","mirror-lake-trail","buchanan-pass-trail","pawnee-pass-trail-via-long-lake","mount-audubon-trail","mount-toll-trail","blue-lake-via-mitchell-lake-trail","mitchell-lake-trail","brainard-lake-loop","rainbow-lakes-trail","hessie-falls-and-lost-lake-trail","king-lake-trail","devils-thumb-lake-via-hessie-trail","woodland-lake-via-hessie-trail","jasper-lake-trail","fourth-of-july-trail","arapaho-pass-trail","arapaho-glacier-trail","heart-lake-trail","rogers-pass-lake-via-rogers-pass-trail","james-peak-trail","mount-bancroft-via-south-fork-trail","berthoud-pass-ski-trails","current-creek-trail","jones-pass-trail","butler-gulch-trail","herman-lake-trail","watrous-gulch-trail","loveland-pass-ridge-trail","grays-and-torreys-peak-trail","quandary-peak-trail","hoosier-pass-summit-trail","mount-silverheels-trail","mount-lincoln-and-mount-bross-via-kite-lake","decalibron-loop","mount-democrat-trail","wheeler-lake-trail","mount-of-the-holy-cross-trail","booth-falls-trail","booth-lake-trail","gore-lake-trail","deluge-lake-trail","pitkin-lake-trail","eaglesmere-lake-via-gore-creek-trail","upper-piney-river-falls-trail","upper-cataract-lake-via-surprise-and-eaglesmere-trail","hanging-lake-trail","grizzly-creek-trail","glenwood-canyon-bike-trail","mount-sopris-trail","capitol-lake-trail","capitol-peak-trail","maroon-bells-scenic-loop","crater-lake-trail","conundrum-hot-springs-trail","cathedral-lake-trail","electric-pass-trail"];
+
+const AT_SLUGS = ["at-10041212","at-10288769","at-10411434","at-10411463","at-10411464","at-10411451","at-10411458","at-10411462","at-10411457","at-10411455","at-10411459","at-10411460","at-10411456","at-10411461","at-10339055","at-10253565","at-10411450","at-10411452","at-10411453","at-10411454","at-10339049","at-10416697","at-10645547","at-10645555","at-10289029","at-10645545","at-10625547","at-10636785","at-10645549","at-10645548","at-10645541","at-10645552","at-10645556","at-10645551","at-10645554","at-10645553","at-10645550","at-10645546","at-10645543","at-10645544","at-10645542","at-10636789","at-10636786","at-10636788","at-10636787","at-10636790","at-10625541","at-10625546","at-10625542","at-10625544","at-10625543","at-10625545","at-10339061","at-10339059","at-10337217","at-10339046","at-10339051","at-10339039","at-10339048","at-10339053","at-10339063","at-10339040","at-10337224","at-10339043","at-10337229","at-10339044","at-10337210","at-10337228","at-10337218","at-10337227","at-10339042","at-10337225","at-10337222","at-10339060","at-10339047","at-10337223","at-10339062","at-10339057","at-10337219","at-10337232","at-10337221","at-10337231","at-10337230","at-10337226","at-10337209","at-10332807","at-10339045","at-10339041","at-10339052","at-10339054","at-10337214","at-10337213","at-10337211","at-10337216","at-10337215","at-10337220","at-10339058","at-10339056","at-10339050","at-10339037","at-10339038","at-10291138","at-10259777","at-10411449","at-10301092","at-10484264","at-10299381","at-10411446","at-10411448","at-10622493","at-10622480","at-10622485","at-10622492","at-10622490","at-10622479","at-10411447","at-10622488","at-10622489","at-10622486","at-10622491","at-10622482","at-10622487","at-10622481","at-10622483","at-10622484","at-10253544","at-10247436","at-10289012","at-10290505","at-10290506","at-10290507","at-10290509","at-10290508","at-10288770","at-10253536","at-10253538","at-10253541","at-10253543","at-10289038","at-10253540","at-10253542","at-10289039","at-10289024","at-10289019","at-10289026","at-10289030","at-10253537","at-10253539","at-10253535","at-10301089","at-10301090","at-10289020","at-10301091","at-10259778","at-10624637","at-10624643","at-10624636","at-10624642","at-10624640","at-10624644","at-10624639","at-10624641","at-10624638","at-10290410","at-10290406","at-10290412","at-10290402","at-10290400","at-10290413","at-10290403","at-10290404","at-10290409","at-10290405","at-10290407","at-10290411","at-10290401","at-10290408","at-10643800","at-10644181","at-10261093","at-10261094","at-10261095","at-10261098","at-10261099","at-10261100","at-10261097","at-10261096","at-10289940","at-10289939","at-10289941","at-10248157","at-10248158","at-10247439","at-10247443","at-10247441","at-10247438","at-10247437","at-10247442","at-10247440","at-10289011","at-10289014","at-10289013","at-10289015","at-10289017","at-10289016","at-10289018","at-10289022","at-10289021","at-10253564","at-10253550","at-10253556","at-10253566","at-10253557","at-10253554","at-10253563","at-10253560","at-10253547","at-10253562","at-10253546","at-10253548","at-10253549","at-10253553","at-10253551","at-10253558","at-10253559","at-10253561","at-10253545","at-10253555","at-10253552","at-10288771","at-10288772","at-10289025","at-10289023","at-10289027","at-10289037","at-10289033","at-10289032","at-10289028","at-10289034","at-10289036","at-10289035","at-10289031","at-10290510","at-10290512","at-10290511","at-10290515","at-10290513","at-10290514","at-10290516","at-10290517","at-10290518","at-10290519","at-10301093","at-10301094","at-10301087","at-10301095","at-10301088","at-10299382","at-10484265","at-10484263","at-10484266","at-10411435","at-10411436","at-10411437","at-10411438","at-10411439","at-10411441","at-10411443","at-10411440","at-10411444","at-10411445","at-10411442","at-10636791","at-10636792","at-10636793","at-10636794","at-10636795","at-10636796","at-10636797"];
+
+// Build full URLs
+const ALL_SLUGS = [
+  ...REAL_SLUGS.map(s => `https://www.alltrails.com/trail/us/colorado/${s}`),
+  ...AT_SLUGS.map(s => `https://www.alltrails.com/api/alltrails/v2/trails/details/${s.replace('at-','')}`)
+];
+
+let running = false;
+let idx = parseInt(localStorage.getItem('_captureIdx') || '0');
+let captured = parseInt(localStorage.getItem('_captureOk') || '0');
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.textContent = msg + '\n' + el.textContent;
+}
+
+function updateUI() {
+  const pct = (idx / ALL_SLUGS.length * 100).toFixed(1);
+  document.getElementById('bar').style.width = pct + '%';
+  document.getElementById('status').textContent =
+    `Trail ${idx}/${ALL_SLUGS.length} (${pct}%) | Captured: ${captured}`;
+}
+
+function stopCapture() {
+  running = false;
+  log('Stopped.');
+}
+
+function skipOne() {
+  idx++;
+  localStorage.setItem('_captureIdx', idx);
+  updateUI();
+  if (running) loadNext();
+}
+
+async function startCapture() {
+  running = true;
+  log(`Starting from trail ${idx}...`);
+  loadNext();
+}
+
+function loadNext() {
+  if (!running || idx >= ALL_SLUGS.length) {
+    log('DONE! All trails processed.');
+    running = false;
+    return;
+  }
+
+  updateUI();
+  const url = ALL_SLUGS[idx];
+  const isApi = url.includes('/api/');
+
+  if (isApi) {
+    // For API URLs, the iframe load through the proxy will capture the response
+    log(`[${idx}] API: ${url.split('/').pop()}`);
+  } else {
+    log(`[${idx}] Page: ${url.split('/').pop()}`);
+  }
+
+  const frame = document.getElementById('frame');
+  frame.src = url;
+
+  // Wait for load, then advance
+  setTimeout(() => {
+    captured++;
+    localStorage.setItem('_captureOk', captured);
+    idx++;
+    localStorage.setItem('_captureIdx', idx);
+    if (running) loadNext();
+  }, isApi ? 3000 : 8000); // API calls are fast, pages need time to load map
+}
+
+updateUI();
+</script>
+</body>
+</html>
